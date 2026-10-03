@@ -8,7 +8,6 @@ part number, or category.
 
 It's plain HTML/CSS/JavaScript with no build step and no server — it runs
 entirely in the browser and saves data to that browser's `localStorage`.
-That's what makes it free to host on GitHub Pages (or any static host).
 
 ## Using it
 
@@ -54,74 +53,3 @@ separators line up with the range's own start and end (so a search for
 between the two. If you type a range's start and end in incompatible
 formats, the form shows a warning since a search in between likely won't
 find it.
-
-### A note on where the data lives
-
-There's no backend, so all racks, pallets, shelves and products are saved
-in **your browser's local storage** — specific to one browser on one
-device. That means:
-
-- Data won't automatically appear on a different computer or a different
-  browser, even on the same computer.
-- Clearing browser data/cache can erase it.
-- **Use "Export data" regularly.** It downloads a JSON file with everything
-  in it. "Import data" loads that file back in (on the same device or a
-  different one), replacing whatever's currently there.
-
-If several people at the store need to see the same live map at once, that
-requires a shared backend, which is a bigger project than a static GitHub
-Pages site — see "If you outgrow this" below.
-
-## Hosting it on GitHub Pages (free)
-
-1. Create a new repository on GitHub (public repos get free Pages hosting;
-   private repos need a paid plan).
-2. Add these files to the repository, keeping the folder structure exactly
-   as-is (`index.html` at the root, with `css/` and `js/` beside it).
-   - Easiest way: on the repo's GitHub page, click **Add file → Upload
-     files**, then drag in `index.html`, the `css` folder, and the `js`
-     folder together, and commit.
-3. Go to the repo's **Settings → Pages**.
-4. Under **Build and deployment**, set **Source** to **Deploy from a
-   branch**, branch **main**, folder **/ (root)**. Save.
-5. GitHub gives you a URL like `https://yourusername.github.io/your-repo/`
-   after a minute or two — that's the live site.
-
-Any time you edit the files and push/commit again, the live site updates
-automatically within a minute or so.
-
-### Trying it locally first
-
-You can just double-click `index.html` to open it in a browser, but some
-browsers restrict `localStorage` for files opened directly from disk
-(`file://`). If your data doesn't seem to save between visits, run a tiny
-local server from this folder instead:
-
-```
-python3 -m http.server 8000
-```
-
-then open `http://localhost:8000`. This isn't needed once it's on GitHub
-Pages — real https:// hosting doesn't have this restriction.
-
-## File structure
-
-```
-index.html        Page structure: header, toolbar, grid, search panel, modals
-css/styles.css     All styling
-js/store.js        Data model + localStorage persistence + export/import
-js/grid.js         Renders the grid, handles placing/erasing/selecting
-js/editor.js       The rack/pallet modal: shelves and products
-js/search.js       The three search modes and results list
-js/app.js          Wires it all together, toolbar + settings
-```
-
-## If you outgrow this
-
-If it eventually needs to be a shared, always-in-sync tool for multiple
-people at once (rather than one browser's local data), the natural next
-step is pairing this same front end with a small free-tier backend —
-something like Supabase or Firebase — so everyone reads and writes the same
-data. That's a genuinely different project (accounts, a real database,
-sync), so it's left out of this version on purpose to keep it simple and
-free to host as-is. Happy to help design that step if/when it's needed.
