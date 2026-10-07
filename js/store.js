@@ -15,6 +15,8 @@ var Store = (function () {
 
   var STORAGE_KEY = "warehouseMapData.v2";
   var GRID_MAX = 50;
+  var ZOOM_MIN = 10;   // percent (small enough for Fit to show 50 x 50 on a laptop)
+  var ZOOM_MAX = 200;  // percent
   var data = null;
 
   function uid(prefix) {
@@ -43,7 +45,7 @@ var Store = (function () {
 
   function seedData() {
     return {
-      meta: { rows: 6, cols: 8, autoLocate: true },
+      meta: { rows: 6, cols: 8, autoLocate: true, zoom: 100 },
       cells: {},
       sections: {},
       products: {}
@@ -55,6 +57,7 @@ var Store = (function () {
     if (data.meta.autoLocate === undefined) data.meta.autoLocate = true;
     if (!data.meta.rows) data.meta.rows = 6;
     if (!data.meta.cols) data.meta.cols = 8;
+    if (!data.meta.zoom) data.meta.zoom = 100;
   }
 
   function load() {
@@ -127,6 +130,13 @@ var Store = (function () {
     save();
   }
 
+  function setZoom(percent) {
+    percent = Math.round(Number(percent)) || 100;
+    data.meta.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, percent));
+    save();
+    return data.meta.zoom;
+  }
+
   function resizeGrid(rows, cols) {
     rows = Math.max(1, Math.min(GRID_MAX, rows | 0));
     cols = Math.max(1, Math.min(GRID_MAX, cols | 0));
@@ -152,7 +162,9 @@ var Store = (function () {
     return data.sections[entry.id] || null;
   }
 
-  function addSection(row, col, type) {
+  // options.twoSided (racks only): a rack with a Left and a Right side, each
+  // with its own shelves. Racks without it keep a single flat shelf list.
+  function addSection(row, col, type, options) {
     if (getCell(row, col)) return null; // occupied
     var id = uid(type === "rack" ? "rack" : "pallet");
     var section = {
@@ -163,11 +175,16 @@ var Store = (function () {
       label: defaultSectionLabel(row, col)
     };
     if (type === "rack") {
-      section.shelves = [
-        { id: uid("shelf"), label: "Shelf 1", productIds: [] },
-        { id: uid("shelf"), label: "Shelf 2", productIds: [] },
-        { id: uid("shelf"), label: "Shelf 3", productIds: [] }
-      ];
+      section.shelves = [];
+      var sides = options && options.twoSided ? ["left", "right"] : [null];
+      if (sides.length === 2) section.twoSided = true;
+      sides.forEach(function (side) {
+        for (var i = 1; i <= 3; i++) {
+          var shelf = { id: uid("shelf"), label: "Shelf " + i, productIds: [] };
+          if (side) shelf.side = side;
+          section.shelves.push(shelf);
+        }
+      });
     } else {
       section.productIds = [];
     }
@@ -213,14 +230,22 @@ var Store = (function () {
 
   /* ---------- shelves ---------- */
 
-  function addShelf(rackId) {
+  // For a two-sided rack, `side` ("left" | "right") says which side the new
+  // shelf goes on; one-sided racks ignore it.
+  function addShelf(rackId, side) {
     var rack = data.sections[rackId];
     if (!rack || rack.type !== "rack") return null;
-    var n = rack.shelves.length + 1;
-    var id = uid("shelf");
-    rack.shelves.push({ id: id, label: "Shelf " + n, productIds: [] });
+    var shelf = { id: uid("shelf"), label: "", productIds: [] };
+    var existing = rack.shelves;
+    if (rack.twoSided) {
+      side = side === "right" ? "right" : "left";
+      shelf.side = side;
+      existing = rack.shelves.filter(function (s) { return s.side === side; });
+    }
+    shelf.label = "Shelf " + (existing.length + 1);
+    rack.shelves.push(shelf);
     save();
-    return id;
+    return shelf.id;
   }
 
   function removeShelf(rackId, shelfId) {
@@ -239,6 +264,70 @@ var Store = (function () {
     var shelf = rack.shelves.find(function (s) { return s.id === shelfId; });
     if (!shelf) return;
     shelf.label = label.trim() || shelf.label;
+    save();
+  }
+
+  /* ---------- rack sides ----------
+     A shelf on a two-sided rack carries side: "left" | "right". Racks saved
+     before this existed have no twoSided flag and no side on their shelves,
+     which simply means "one-sided", so old data and old exports keep
+     working unchanged. */
+
+  function sideName(side) {
+    return side === "right" ? "Right" : "Left";
+  }
+
+  function sideShelves(rack, side) {
+    return rack.shelves.filter(function (s) { return s.side === side; });
+  }
+
+  function sideProductCount(rackId, side) {
+    var rack = data.sections[rackId];
+    if (!rack || rack.type !== "rack") return 0;
+    return sideShelves(rack, side).reduce(function (n, s) { return n + s.productIds.length; }, 0);
+  }
+
+  // Converts a rack between one-sided and two-sided, in place.
+  //  - to two-sided: the existing shelves become the Left side, and the Right
+  //    side starts empty with the same number of shelves.
+  //  - to one-sided: the Left side becomes the whole rack and
+  //    `rightSideAction` is required:
+  //      "merge":  right-side shelves that hold products are kept and added
+  //                after the existing shelves (empty ones are dropped)
+  //      "delete": the right-side shelves and their products are removed
+  function setRackTwoSided(rackId, twoSided, rightSideAction) {
+    var rack = data.sections[rackId];
+    if (!rack || rack.type !== "rack") return;
+    twoSided = !!twoSided;
+    if (twoSided === !!rack.twoSided) return;
+
+    if (twoSided) {
+      var count = Math.max(1, rack.shelves.length);
+      rack.shelves.forEach(function (s) { s.side = "left"; });
+      for (var i = 1; i <= count; i++) {
+        rack.shelves.push({ id: uid("shelf"), label: "Shelf " + i, side: "right", productIds: [] });
+      }
+      rack.twoSided = true;
+    } else {
+      if (rightSideAction !== "merge" && rightSideAction !== "delete") return;
+      var left = rack.shelves.filter(function (s) { return s.side !== "right"; });
+      var right = sideShelves(rack, "right");
+      var kept = rightSideAction === "merge"
+        ? right.filter(function (s) { return s.productIds.length > 0; })
+        : [];
+      right.forEach(function (shelf) {
+        if (kept.indexOf(shelf) === -1) {
+          shelf.productIds.forEach(function (pid) { delete data.products[pid]; });
+        }
+      });
+      kept.forEach(function (shelf, i) {
+        // continue the numbering for shelves still using a default name
+        if (/^Shelf \d+$/.test(shelf.label)) shelf.label = "Shelf " + (left.length + i + 1);
+      });
+      rack.shelves = left.concat(kept);
+      rack.shelves.forEach(function (s) { delete s.side; });
+      rack.twoSided = false;
+    }
     save();
   }
 
@@ -325,7 +414,9 @@ var Store = (function () {
     if (!section) return "Unplaced";
     if (section.type === "pallet") return "Pallet " + section.label;
     var shelf = section.shelves.find(function (s) { return s.id === product.shelfId; });
-    return "Rack " + section.label + (shelf ? " \u2013 " + shelf.label : "");
+    return "Rack " + section.label + (shelf
+      ? " \u2013 " + (shelf.side ? sideName(shelf.side) + " \u2013 " : "") + shelf.label
+      : "");
   }
 
   function productDisplayPart(product) {
@@ -434,8 +525,12 @@ var Store = (function () {
     load: load,
     save: save,
     GRID_MAX: GRID_MAX,
+    ZOOM_MIN: ZOOM_MIN,
+    ZOOM_MAX: ZOOM_MAX,
+    colLabel: colLabel,
     getMeta: getMeta,
     setAutoLocate: setAutoLocate,
+    setZoom: setZoom,
     resizeGrid: resizeGrid,
     getCell: getCell,
     cellKey: cellKey,
@@ -446,6 +541,9 @@ var Store = (function () {
     addShelf: addShelf,
     removeShelf: removeShelf,
     renameShelf: renameShelf,
+    sideName: sideName,
+    sideProductCount: sideProductCount,
+    setRackTwoSided: setRackTwoSided,
     addProduct: addProduct,
     updateProduct: updateProduct,
     removeProduct: removeProduct,

@@ -27,6 +27,11 @@
   --color-danger: #A23B2E;
   --color-danger-soft: #F5E1DD;
 
+  /* small count chips (map badge uses the accent; the rack-side switch uses these) */
+  --color-count-bg: var(--color-accent-ink);
+  --color-count-fg: var(--color-accent-soft);
+  --color-backdrop: rgba(24,22,16,.45);
+
   --font-display: 'Space Grotesk', 'Segoe UI', sans-serif;
   --font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', 'Consolas', monospace;
@@ -35,6 +40,47 @@
   --shadow-panel: 0 1px 2px rgba(32,36,42,.06);
   --shadow-modal: 0 24px 60px rgba(20,18,12,.35);
 }
+
+/* ---------- dark mode ----------
+   Same blueprint look, inverted: charcoal panels, the amber stays the
+   action colour, and the rack blue / pallet green are lightened so they
+   still read on a dark background. Switched by Theme (js/theme.js), which
+   sets data-theme="dark" on <html>. color-scheme makes the browser's own
+   controls (scrollbars, the category <select>, number spinners) go dark too. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #14161A;
+  --color-panel: #1D2026;
+  --color-toolbar: #181B20;
+  --color-nested: #242830;
+
+  --color-ink: #ECE8DE;
+  --color-ink-soft: #A5A9B0;
+  --color-line: #353A43;
+  --color-line-strong: #505763;
+
+  --color-accent: #E39A28;
+  --color-accent-ink: #2A1B02;
+  --color-accent-soft: #3A2C12;
+
+  --color-rack: #74A9D6;
+  --color-rack-soft: #1F3345;
+
+  --color-pallet: #96B88A;
+  --color-pallet-soft: #26332A;
+
+  --color-danger: #EE8878;
+  --color-danger-soft: #402320;
+
+  --color-count-bg: #2A1B02;
+  --color-count-fg: #F6E6C3;
+  --color-backdrop: rgba(0,0,0,.62);
+
+  --shadow-panel: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-modal: 0 24px 60px rgba(0,0,0,.65);
+}
+:root[data-theme="dark"] .btn:hover { filter: brightness(1.15); }
 
 * { box-sizing: border-box; }
 html { color-scheme: light; }
@@ -49,6 +95,8 @@ body {
 body.modal-open { overflow: hidden; }
 h1, h2, h3 { font-family: var(--font-display); margin: 0; font-weight: 600; }
 p { margin: 0; }
+/* author display rules (flex, grid...) would otherwise override [hidden] */
+[hidden] { display: none !important; }
 .mono { font-family: var(--font-mono); }
 hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 
@@ -131,35 +179,87 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 }
 
 .map-wrap {
+  /* a grid item won't shrink below its content's width unless told to, and
+     without this a wide warehouse stretches the page instead of scrolling
+     inside .map-scroll */
+  min-width: 0;
   background: var(--color-panel);
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
   padding: 18px;
   box-shadow: var(--shadow-panel);
-  overflow-x: auto;
 }
-.map-legend { display: flex; gap: 18px; margin-bottom: 14px; font-size: .8rem; color: var(--color-ink-soft); }
+.map-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 18px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.map-legend { display: flex; gap: 6px 18px; flex-wrap: wrap; font-size: .8rem; color: var(--color-ink-soft); }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; border: 1.5px solid; }
 .legend-swatch--rack { background: var(--color-rack-soft); border-color: var(--color-rack); }
+.legend-swatch--rack2 {
+  border-color: var(--color-rack);
+  background:
+    linear-gradient(90deg, transparent calc(50% - .5px), var(--color-rack) calc(50% - .5px), var(--color-rack) calc(50% + .5px), transparent calc(50% + .5px)),
+    var(--color-rack-soft);
+}
 .legend-swatch--pallet { background: var(--color-pallet-soft); border-color: var(--color-pallet); }
 .legend-swatch--empty { background: transparent; border-color: var(--color-line-strong); border-style: dashed; }
 
+/* ---------- zoom controls ---------- */
+.zoom { display: flex; align-items: center; gap: 8px; }
+.zoom__btn { width: 32px; height: 32px; padding: 0; justify-content: center; font-size: 1.1rem; line-height: 1; }
+.zoom__range { width: 120px; accent-color: var(--color-accent); }
+.zoom__value { min-width: 4ch; text-align: right; font-size: .78rem; color: var(--color-ink-soft); }
+.zoom__fit { padding: 6px 12px; }
+
+/* ---------- map viewport ----------
+   Capped to the window height so both scrollbars are always on screen,
+   however big the grid gets. The sticky grid headers use the scroll-padding
+   so scrolling a cell into view doesn't tuck it under them. */
+.map-scroll {
+  overflow: auto;
+  max-height: max(320px, calc(100vh - 250px));
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  scroll-padding: var(--hdr-h, 20px) 0 0 var(--hdr-w, 30px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.map-scroll.is-panning,
+.map-scroll.is-panning * { cursor: grabbing !important; }
+
 /* ---------- grid ---------- */
+/* Cells are a fixed size (--cell, set by the zoom level in grid.js). The
+   first row and first column are sticky headers. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(var(--cols, 8), minmax(52px, 1fr));
-  gap: 4px;
-  background-image:
-    linear-gradient(var(--color-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
-  background-size: 100% 100%;
-  padding: 2px;
+  grid-template-columns: var(--hdr-w, 30px) repeat(var(--cols, 8), var(--cell, 64px));
+  grid-template-rows: var(--hdr-h, 20px) repeat(var(--rows, 6), var(--cell, 64px));
+  gap: var(--gap, 3px);
+  width: max-content;
 }
+.grid__corner, .grid__hdr {
+  position: sticky;
+  z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  background: var(--color-panel);
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono); font-size: .62rem;
+  user-select: none;
+}
+.grid__corner { top: 0; left: 0; z-index: 3; }
+.grid__hdr--col { top: 0; border-bottom: 1px solid var(--color-line); }
+.grid__hdr--row { left: 0; border-right: 1px solid var(--color-line); }
+.grid--compact .grid__hdr { font-size: .55rem; }
+.grid--tiny .grid__hdr { font-size: 6px; }
 .cell {
   position: relative;
-  aspect-ratio: 1;
-  min-height: 52px;
+  width: var(--cell, 64px);
+  height: var(--cell, 64px);
+  overflow: hidden;
   border: 1.5px dashed var(--color-line-strong);
   border-radius: var(--radius);
   background: transparent;
@@ -170,7 +270,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
   gap: 2px;
   cursor: pointer;
   color: var(--color-ink-soft);
-  padding: 3px;
+  padding: 2px;
   transition: transform .1s ease;
 }
 .cell:hover { transform: translateY(-1px); }
@@ -185,8 +285,14 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
   border-style: solid; border-color: var(--color-pallet);
   background: var(--color-pallet-soft); color: var(--color-pallet);
 }
-.cell__icon svg { width: 16px; height: 16px; }
-.cell__label { font-family: var(--font-mono); font-size: .58rem; font-weight: 500; color: var(--color-ink); }
+.cell__icon svg { width: max(14px, calc(var(--cell, 64px) * .3)); height: max(14px, calc(var(--cell, 64px) * .3)); display: block; }
+.cell__label { font-family: var(--font-mono); font-size: max(9px, calc(var(--cell, 64px) * .16)); font-weight: 500; color: var(--color-ink); line-height: 1.1; }
+/* not enough room for everything at small zoom levels */
+.grid--compact .cell__icon,
+.grid--compact .cell__count { display: none; }
+.grid--tiny .cell__label { display: none; }
+.grid--tiny .cell__plus { display: none; }
+.grid--compact .cell__plus { font-size: 1rem; }
 .cell__count {
   position: absolute; top: 2px; right: 2px;
   background: var(--color-accent); color: var(--color-accent-ink);
@@ -254,6 +360,38 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 .field--checkbox { flex-direction: row; align-items: center; gap: 10px; font-size: .85rem; }
 .field--checkbox input { width: 17px; height: 17px; accent-color: var(--color-accent); flex-shrink: 0; }
 
+/* ---------- category combobox (product form) ---------- */
+.combo__box { position: relative; }
+.combo__box input { width: 100%; padding-right: 34px; }
+.combo__toggle {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0;
+  color: var(--color-ink-soft); cursor: pointer;
+}
+.combo__toggle:hover { color: var(--color-ink); }
+.combo__box input[aria-expanded="true"] + .combo__toggle svg { transform: rotate(180deg); }
+/* position:fixed (placed by editor.js) so the modal's scrolling body can't clip it */
+.combo__list {
+  position: fixed; z-index: 80;
+  margin: 0; padding: 4px; list-style: none;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: var(--color-panel);
+  border: 1.5px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-modal);
+}
+.combo__option {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 3px;
+  font-size: .9rem; color: var(--color-ink); cursor: pointer;
+}
+.combo__option:hover, .combo__option.is-active { background: var(--color-accent-soft); }
+.combo__option.is-current { font-weight: 600; }
+.combo__option.is-current::after { content: "\2713"; color: var(--color-accent); font-weight: 700; }
+.combo__match { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 3px; text-decoration-thickness: 2px; }
+.combo__hint { padding: 8px 10px; font-size: .8rem; color: var(--color-ink-soft); line-height: 1.4; }
+
 /* ---------- toggle (single item / range) ---------- */
 .toggle-group { display: inline-flex; border: 1.5px solid var(--color-line-strong); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
 .toggle-btn {
@@ -264,6 +402,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 .toggle-btn + .toggle-btn { border-left: 1.5px solid var(--color-line-strong); }
 .toggle-btn.is-active { background: var(--color-accent); color: var(--color-accent-ink); }
 .toggle-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.toolbar .toggle-group { margin-bottom: 0; }
 
 .tag-range {
   display: inline-block;
@@ -284,7 +423,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 
 /* ---------- modals ---------- */
 .modal { position: fixed; inset: 0; z-index: 50; }
-.modal__backdrop { position: absolute; inset: 0; background: rgba(24,22,16,.45); }
+.modal__backdrop { position: absolute; inset: 0; background: var(--color-backdrop); }
 .modal__panel {
   position: relative;
   margin: 4vh auto;
@@ -317,6 +456,33 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 
 /* ---------- shelves & products ---------- */
 .shelf-stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* two-sided racks: a Left side / Right side switch, then that side's shelves */
+.side-toggle { display: flex; width: 100%; margin-bottom: 0; }
+.side-toggle .toggle-btn {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 14px; font-size: .85rem;
+}
+.toggle-btn__count {
+  font-family: var(--font-mono); font-size: .68rem; font-weight: 600;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-line); color: var(--color-ink);
+}
+.toggle-btn.is-active .toggle-btn__count { background: var(--color-count-bg); color: var(--color-count-fg); }
+.side-group { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.side-group .shelf { align-self: stretch; }
+.rack-options { display: flex; flex-direction: column; gap: 12px; }
+.side-choice {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.side-choice__msg { font-size: .88rem; font-weight: 500; }
+.side-choice__note { font-size: .78rem; color: var(--color-ink-soft); }
+.side-choice__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .shelf { border: 1px solid var(--color-line); border-radius: var(--radius); padding: 12px; background: var(--color-nested); }
 .shelf__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .shelf__bar { width: 22px; height: 4px; background: var(--color-rack); border-radius: 2px; flex-shrink: 0; }
@@ -346,6 +512,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 /* ---------- settings ---------- */
 .resize-form { display: flex; gap: 12px; align-items: flex-end; }
 .resize-form .field { flex: 1; }
+.settings-options { display: flex; flex-direction: column; gap: 12px; }
 .settings-note { font-size: .8rem; color: var(--color-ink-soft); margin: 12px 0; }
 
 /* ---------- misc / a11y ---------- */
@@ -356,8 +523,26 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
   .app-header { padding: 14px; }
   .toolbar { padding: 10px 14px; }
   .layout { padding: 14px 14px 32px; }
-  .grid { grid-template-columns: repeat(var(--cols, 8), minmax(40px, 1fr)); gap: 3px; }
-  .cell { min-height: 40px; }
   .product-form { grid-template-columns: 1fr; }
   .product-form .field:nth-child(4) { grid-column: auto; }
+
+  /* rack/pallet window: keep the Delete and close buttons on screen (the
+     name field would otherwise be too wide and push them off the edge),
+     give the content the full width, and stack each product as a small
+     card instead of a six-column table that overflows */
+  .modal__header { padding: 14px; flex-wrap: wrap; }
+  .modal__header > div:first-child { flex: 1 1 140px; min-width: 0; }
+  .modal__title-input { width: 100%; min-width: 0; }
+  .modal__header-actions .btn { white-space: nowrap; }
+  .modal__body { padding: 14px; }
+  .shelf { padding: 10px; }
+  .product-list { margin-left: 0; }
+  .product-table thead { display: none; }
+  .product-table, .product-table tbody, .product-table tr, .product-table td { display: block; }
+  .product-table tr { padding: 8px 0; border-bottom: 1px solid var(--color-line); }
+  .product-table td { border: none; padding: 1px 0; }
+  .product-table td:empty { display: none; }
+  .product-table td[data-label]::before { content: attr(data-label) ": "; color: var(--color-ink-soft); }
+  .product-table__actions { text-align: left; margin-top: 4px; }
+  .product-table__form-row { padding: 0; border-bottom: none; }
 }
