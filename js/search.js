@@ -105,7 +105,7 @@ var Search = (function () {
         openBtn.type = "button";
         openBtn.className = "btn btn--text";
         openBtn.textContent = "Open";
-        openBtn.addEventListener("click", function () { onOpenSection(section.id); });
+        openBtn.addEventListener("click", function () { onOpenSection(section.id, product.shelfId); });
         actions.appendChild(openBtn);
       }
       row.appendChild(actions);

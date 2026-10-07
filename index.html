@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css" />
+<script src="js/theme.js"></script><!-- in <head> so a saved dark theme applies before first paint -->
 </head>
 <body>
 
@@ -55,17 +56,31 @@
     <button class="btn btn--mode" data-mode-btn="pallet">Place pallet</button>
     <button class="btn btn--mode" data-mode-btn="erase">Erase</button>
   </div>
+  <div class="toggle-group" id="rackSidesToggle" role="group" aria-label="Type of rack to place" hidden>
+    <button type="button" class="toggle-btn is-active" data-rack-sides="one">One-sided rack</button>
+    <button type="button" class="toggle-btn" data-rack-sides="two">Two-sided rack</button>
+  </div>
   <p class="toolbar__hint" id="toolbarHint">Click a rack or pallet to view and edit its shelves.</p>
 </div>
 
 <main class="layout">
   <section class="map-wrap" aria-label="Warehouse floor map">
-    <div class="map-legend">
-      <span><i class="legend-swatch legend-swatch--rack" aria-hidden="true"></i>Rack</span>
-      <span><i class="legend-swatch legend-swatch--pallet" aria-hidden="true"></i>Pallet</span>
-      <span><i class="legend-swatch legend-swatch--empty" aria-hidden="true"></i>Empty</span>
+    <div class="map-bar">
+      <div class="map-legend">
+        <span><i class="legend-swatch legend-swatch--rack" aria-hidden="true"></i>Rack</span>
+        <span><i class="legend-swatch legend-swatch--rack2" aria-hidden="true"></i>Two-sided rack</span>
+        <span><i class="legend-swatch legend-swatch--pallet" aria-hidden="true"></i>Pallet</span>
+        <span><i class="legend-swatch legend-swatch--empty" aria-hidden="true"></i>Empty</span>
+      </div>
+      <div class="zoom" role="group" aria-label="Map zoom">
+        <button type="button" class="btn btn--icon zoom__btn" id="zoomOut" aria-label="Zoom out">&minus;</button>
+        <input type="range" id="zoomRange" class="zoom__range" min="10" max="200" step="5" value="100" aria-label="Zoom level" />
+        <button type="button" class="btn btn--icon zoom__btn" id="zoomIn" aria-label="Zoom in">+</button>
+        <span class="zoom__value mono" id="zoomValue">100%</span>
+        <button type="button" class="btn btn--outline zoom__fit" id="zoomFit" title="Zoom so the whole warehouse fits on screen">Fit</button>
+      </div>
     </div>
-    <div class="grid" id="warehouseGrid"></div>
+    <div class="map-scroll" id="mapScroll"><div class="grid" id="warehouseGrid"></div></div>
   </section>
 
   <aside class="search-panel" id="searchPanel" aria-label="Search products">
@@ -128,10 +143,16 @@
       <button class="btn btn--icon" data-close-settings aria-label="Close">&times;</button>
     </header>
     <div class="modal__body">
-      <label class="field field--checkbox">
-        <input type="checkbox" id="autoLocateToggle" />
-        <span>Automatically show matches on the map when I search</span>
-      </label>
+      <div class="settings-options">
+        <label class="field field--checkbox">
+          <input type="checkbox" id="darkModeToggle" />
+          <span>Dark mode</span>
+        </label>
+        <label class="field field--checkbox">
+          <input type="checkbox" id="autoLocateToggle" />
+          <span>Automatically show matches on the map when I search</span>
+        </label>
+      </div>
 
       <hr />
 
@@ -149,8 +170,6 @@
     </div>
   </div>
 </div>
-
-<datalist id="categoryOptions"></datalist>
 
 <script src="js/store.js"></script>
 <script src="js/grid.js"></script>

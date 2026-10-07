@@ -20,25 +20,81 @@
     var searchPanel = document.getElementById("searchPanel");
     var settingsModal = document.getElementById("settingsModal");
     var toolbarHint = document.getElementById("toolbarHint");
+    var scrollEl = document.getElementById("mapScroll");
+    var rackSidesToggle = document.getElementById("rackSidesToggle");
+    var zoomRange = document.getElementById("zoomRange");
+    var zoomValue = document.getElementById("zoomValue");
+
+    var currentMode = "select";
+    var rackTwoSided = false;
+
+    function syncZoomUI() {
+      var zoom = Store.getMeta().zoom;
+      zoomRange.value = zoom;
+      zoomValue.textContent = zoom + "%";
+    }
 
     function refreshAll() {
       Grid.render();
       Search.refreshCategoryOptions();
+      syncZoomUI();
     }
 
-    Grid.init(gridEl, function (sectionId) { Editor.open(sectionId); });
+    function updateToolbar() {
+      var hint = HINTS[currentMode];
+      if (currentMode === "rack") {
+        hint = "Click an empty square to place a " + (rackTwoSided ? "two-sided" : "one-sided") + " rack.";
+      }
+      toolbarHint.textContent = hint;
+      rackSidesToggle.hidden = currentMode !== "rack";
+    }
+
+    Grid.init(gridEl, scrollEl, function (sectionId) { Editor.open(sectionId); });
     Editor.init(sectionModal, refreshAll);
     Search.init(searchPanel, {
       onLocate: function (sectionIds) { Grid.highlightSections(sectionIds); },
-      onOpenSection: function (sectionId) { Editor.open(sectionId); }
+      onOpenSection: function (sectionId, shelfId) { Editor.open(sectionId, shelfId); }
     });
 
     document.querySelectorAll("[data-mode-btn]").forEach(function (btn) {
       btn.addEventListener("click", function () {
-        var mode = btn.getAttribute("data-mode-btn");
-        Grid.setMode(mode);
-        toolbarHint.textContent = HINTS[mode];
+        currentMode = btn.getAttribute("data-mode-btn");
+        Grid.setMode(currentMode);
+        updateToolbar();
       });
+    });
+
+    /* ---- one-sided / two-sided rack choice (shown while placing racks) ---- */
+    document.querySelectorAll("[data-rack-sides]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        rackTwoSided = btn.getAttribute("data-rack-sides") === "two";
+        Grid.setRackSides(rackTwoSided);
+        document.querySelectorAll("[data-rack-sides]").forEach(function (b) {
+          b.classList.toggle("is-active", b === btn);
+        });
+        updateToolbar();
+      });
+    });
+
+    /* ---- zoom ---- */
+    zoomRange.min = Store.ZOOM_MIN;
+    zoomRange.max = Store.ZOOM_MAX;
+    syncZoomUI();
+    zoomRange.addEventListener("input", function () {
+      Grid.setZoom(parseInt(zoomRange.value, 10));
+      syncZoomUI();
+    });
+    document.getElementById("zoomOut").addEventListener("click", function () {
+      Grid.setZoom(Store.getMeta().zoom - 10);
+      syncZoomUI();
+    });
+    document.getElementById("zoomIn").addEventListener("click", function () {
+      Grid.setZoom(Store.getMeta().zoom + 10);
+      syncZoomUI();
+    });
+    document.getElementById("zoomFit").addEventListener("click", function () {
+      Grid.fitToView();
+      syncZoomUI();
     });
 
     /* ---- export ---- */
@@ -77,12 +133,14 @@
     var rowsInput = document.getElementById("rowsInput");
     var colsInput = document.getElementById("colsInput");
     var autoLocateToggle = document.getElementById("autoLocateToggle");
+    var darkModeToggle = document.getElementById("darkModeToggle");
 
     function openSettings() {
       var meta = Store.getMeta();
       rowsInput.value = meta.rows;
       colsInput.value = meta.cols;
       autoLocateToggle.checked = meta.autoLocate !== false;
+      darkModeToggle.checked = Theme.isDark();
       settingsModal.hidden = false;
       document.body.classList.add("modal-open");
     }
@@ -96,6 +154,10 @@
     });
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && !settingsModal.hidden) closeSettings();
+    });
+
+    darkModeToggle.addEventListener("change", function () {
+      Theme.set(darkModeToggle.checked);
     });
 
     autoLocateToggle.addEventListener("change", function () {
