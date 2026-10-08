@@ -26,6 +26,7 @@ var Grid = (function () {
   var scroller = null;    // .map-scroll
   var onOpenSection = function () {};
   var swallowNextClick = false;
+  var foundIds = {};      // sections marked by the latest search; kept until the next search
 
   function init(gridEl, scrollEl, openSectionCallback) {
     container = gridEl;
@@ -129,16 +130,33 @@ var Grid = (function () {
     btn.setAttribute("data-cell", "1");
 
     if (section) {
-      btn.className = "cell cell--" + section.type;
-      btn.setAttribute("data-section-id", section.id);
       var count = Store.sectionProductCount(section);
       var twoSided = section.type === "rack" && !!section.twoSided;
+      btn.className = "cell cell--" + section.type +
+        (twoSided ? " cell--rack2" : "") +                                   // divider shows when zoomed far out
+        (section.type === "rack" && count === 0 ? " cell--unstocked" : "") + // a rack with nothing on it yet
+        (foundIds[section.id] ? " cell--found" : "");
+      btn.setAttribute("data-section-id", section.id);
+
+      // Product-count badges. A two-sided rack gets one per side, in the
+      // matching top corner, showing just that side's products.
+      var badges = "";
+      var sideNote = "";
+      if (twoSided) {
+        var left = Store.sideProductCount(section.id, "left");
+        var right = Store.sideProductCount(section.id, "right");
+        if (left > 0) badges += '<span class="cell__count cell__count--left" title="Left side: ' + left + '">' + left + "</span>";
+        if (right > 0) badges += '<span class="cell__count cell__count--right" title="Right side: ' + right + '">' + right + "</span>";
+        if (count > 0) sideNote = " (left " + left + ", right " + right + ")";
+      } else if (count > 0) {
+        badges = '<span class="cell__count">' + count + "</span>";
+      }
       btn.innerHTML =
         '<span class="cell__icon" aria-hidden="true">' + sectionIcon(section.type, twoSided) + "</span>" +
-        '<span class="cell__label">' + escapeHTML(section.label) + "</span>" +
-        (count > 0 ? '<span class="cell__count">' + count + "</span>" : "");
+        '<span class="cell__label">' + escapeHTML(section.label) + "</span>" + badges;
       var kind = section.type === "pallet" ? "Pallet " : (twoSided ? "Two-sided rack " : "Rack ");
-      btn.setAttribute("aria-label", kind + section.label + ", " + count + (count === 1 ? " item" : " items"));
+      btn.setAttribute("aria-label", kind + section.label + ", " + count + (count === 1 ? " item" : " items") + sideNote +
+        (foundIds[section.id] ? MATCH_NOTE : ""));
     } else {
       btn.innerHTML = '<span class="cell__plus" aria-hidden="true">+</span>';
       btn.setAttribute("aria-label", "Empty section, row " + (row + 1) + " column " + (col + 1));
@@ -302,9 +320,24 @@ var Grid = (function () {
     }
   }
 
-  // Pulses every given section and scrolls the first one into view. Used
-  // both by the per-result "Show on map" button (a single id) and by
-  // auto-locate after a search (however many sections matched).
+  // Marks sections as search matches. The mark stays (even through edits
+  // that redraw the map) until clearFound() is called by the next search.
+  var MATCH_NOTE = ", search match";
+  function setFoundMark(el, on) {
+    el.classList.toggle("cell--found", on);
+    var label = (el.getAttribute("aria-label") || "").replace(MATCH_NOTE, "");
+    el.setAttribute("aria-label", label + (on ? MATCH_NOTE : ""));
+  }
+
+  function clearFound() {
+    foundIds = {};
+    container.querySelectorAll(".cell--found").forEach(function (el) { setFoundMark(el, false); });
+  }
+
+  // Pulses every given section, marks it as a match, and scrolls the first
+  // one into view. Used both by the per-result "Show on map" button (a
+  // single id, added to the current marks) and by auto-locate after a
+  // search (however many sections matched).
   function highlightSections(sectionIds) {
     var ids = (sectionIds || []).filter(function (id, i, arr) { return id && arr.indexOf(id) === i; });
     var first = true;
@@ -315,6 +348,8 @@ var Grid = (function () {
         scrollCellIntoView(el);
         first = false;
       }
+      foundIds[id] = true;
+      setFoundMark(el, true);
       el.classList.add("cell--pulse");
       setTimeout(function () { el.classList.remove("cell--pulse"); }, 1600);
     });
@@ -339,6 +374,7 @@ var Grid = (function () {
     fitToView: fitToView,
     sizeViewport: sizeViewport,
     highlightSection: highlightSection,
-    highlightSections: highlightSections
+    highlightSections: highlightSections,
+    clearFound: clearFound
   };
 })();
