@@ -9,12 +9,13 @@ var Search = (function () {
   "use strict";
 
   var panel, resultsEl, categorySelect;
-  var onLocate = function () {}, onOpenSection = function () {};
+  var onLocate = function () {}, onOpenSection = function () {}, onNewSearch = function () {};
 
   function init(panelEl, callbacks) {
     panel = panelEl;
     onLocate = callbacks.onLocate;
     onOpenSection = callbacks.onOpenSection;
+    if (callbacks.onNewSearch) onNewSearch = callbacks.onNewSearch;
     resultsEl = panel.querySelector("#searchResults");
     categorySelect = panel.querySelector('select[name="category"]');
 
@@ -68,6 +69,7 @@ var Search = (function () {
   }
 
   function runResults(list) {
+    onNewSearch(); // last search's map marks go away, even if this one finds nothing
     if (list.length === 0) { showEmpty("No products matched. Try widening the search."); return; }
     resultsEl.innerHTML = "";
     var count = document.createElement("p");

@@ -24,6 +24,10 @@
   --color-pallet: #5B7553;
   --color-pallet-soft: #E9EFE4;
 
+  /* a rack with nothing on it yet: neutral grey, so stocked racks stand out */
+  --color-rack-empty: #8B8E93;
+  --color-rack-empty-soft: #E8E6E1;
+
   --color-danger: #A23B2E;
   --color-danger-soft: #F5E1DD;
 
@@ -69,6 +73,9 @@
 
   --color-pallet: #96B88A;
   --color-pallet-soft: #26332A;
+
+  --color-rack-empty: #7A808B;
+  --color-rack-empty-soft: #2A2E35;
 
   --color-danger: #EE8878;
   --color-danger-soft: #402320;
@@ -204,6 +211,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
     linear-gradient(90deg, transparent calc(50% - .5px), var(--color-rack) calc(50% - .5px), var(--color-rack) calc(50% + .5px), transparent calc(50% + .5px)),
     var(--color-rack-soft);
 }
+.legend-swatch--rack0 { background: var(--color-rack-empty-soft); border-color: var(--color-rack-empty); }
 .legend-swatch--pallet { background: var(--color-pallet-soft); border-color: var(--color-pallet); }
 .legend-swatch--empty { background: transparent; border-color: var(--color-line-strong); border-style: dashed; }
 
@@ -281,6 +289,11 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
   border-style: solid; border-color: var(--color-rack);
   background: var(--color-rack-soft); color: var(--color-rack);
 }
+/* a rack with no products on either side */
+.cell--rack.cell--unstocked {
+  border-color: var(--color-rack-empty);
+  background: var(--color-rack-empty-soft); color: var(--color-rack-empty);
+}
 .cell--pallet {
   border-style: solid; border-color: var(--color-pallet);
   background: var(--color-pallet-soft); color: var(--color-pallet);
@@ -293,6 +306,26 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 .grid--tiny .cell__label { display: none; }
 .grid--tiny .cell__plus { display: none; }
 .grid--compact .cell__plus { font-size: 1rem; }
+/* Two-sided racks: when the icon is hidden (zoomed far out) a gap down the
+   middle still splits the square in two. */
+.cell--rack2::before {
+  content: ""; display: none;
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  width: clamp(1px, calc(var(--cell, 64px) * .12), 3px);
+  transform: translateX(-50%);
+  background: var(--color-panel);
+  pointer-events: none;
+}
+.grid--compact .cell--rack2::before { display: block; }
+
+/* squares matching the latest search stay ringed until the next search */
+.cell--found {
+  outline: 3px solid var(--color-accent); outline-offset: -1px; /* drawn over the border so it never spills onto neighbouring squares */
+  z-index: 1;
+}
+.grid--compact .cell--found { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.grid--compact .cell--found.cell--rack2::before { background: var(--color-accent); }
+
 .cell__count {
   position: absolute; top: 2px; right: 2px;
   background: var(--color-accent); color: var(--color-accent-ink);
@@ -301,6 +334,7 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
   display: flex; align-items: center; justify-content: center;
   padding: 0 2px; line-height: 1;
 }
+.cell__count--left { right: auto; left: 2px; }
 .grid.is-placing .cell--empty:hover { background: var(--color-accent-soft); }
 .grid.is-erasing .cell--rack:hover,
 .grid.is-erasing .cell--pallet:hover { outline: 2px solid var(--color-danger); }
@@ -514,6 +548,22 @@ hr { border: none; border-top: 1px solid var(--color-line); margin: 20px 0; }
 .resize-form .field { flex: 1; }
 .settings-options { display: flex; flex-direction: column; gap: 12px; }
 .settings-note { font-size: .8rem; color: var(--color-ink-soft); margin: 12px 0; }
+
+/* ---------- export / import by copy-paste ---------- */
+.data-help { margin: 0 0 10px; }
+.data-text {
+  display: block; width: 100%; min-height: 200px; resize: vertical;
+  font-family: var(--font-mono); font-size: .72rem; line-height: 1.45;
+  padding: 10px; border: 1.5px solid var(--color-line-strong); border-radius: var(--radius);
+  background: var(--color-bg); color: var(--color-ink);
+  overflow-wrap: anywhere; word-break: break-all;
+}
+.data-text:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.data-status { min-height: 1.4em; margin: 10px 0 2px; font-size: .82rem; color: var(--color-ink-soft); }
+.data-status.is-ok { color: var(--color-pallet); }
+.data-status.is-warn { color: var(--color-accent); }
+.data-status.is-error { color: var(--color-danger); }
+.data-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
 
 /* ---------- misc / a11y ---------- */
 @media (prefers-reduced-motion: reduce) {

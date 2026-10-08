@@ -25,10 +25,7 @@
   </div>
   <div class="app-header__actions">
     <button id="exportBtn" class="btn btn--outline">Export data</button>
-    <label class="btn btn--outline btn--file">
-      Import data
-      <input type="file" id="importInput" accept="application/json" hidden />
-    </label>
+    <button id="importBtn" class="btn btn--outline">Import data</button>
     <button id="settingsBtn" class="btn btn--icon" aria-label="Warehouse settings" title="Warehouse settings">
       <!-- gear / cog: ring + inner hole + 8 teeth, not a sun (no thin radiating rays) -->
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
@@ -69,6 +66,7 @@
       <div class="map-legend">
         <span><i class="legend-swatch legend-swatch--rack" aria-hidden="true"></i>Rack</span>
         <span><i class="legend-swatch legend-swatch--rack2" aria-hidden="true"></i>Two-sided rack</span>
+        <span><i class="legend-swatch legend-swatch--rack0" aria-hidden="true"></i>Rack, no products</span>
         <span><i class="legend-swatch legend-swatch--pallet" aria-hidden="true"></i>Pallet</span>
         <span><i class="legend-swatch legend-swatch--empty" aria-hidden="true"></i>Empty</span>
       </div>
@@ -134,6 +132,34 @@
   </div>
 </div>
 
+<!-- Export / import by copy and paste (no file download needed) -->
+<div id="dataModal" class="modal" hidden>
+  <div class="modal__backdrop" data-close-data></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="dataTitle">
+    <header class="modal__header">
+      <h2 id="dataTitle">Export data</h2>
+      <button class="btn btn--icon" data-close-data aria-label="Close">&times;</button>
+    </header>
+    <div class="modal__body">
+      <p class="settings-note data-help" id="dataHelp"></p>
+      <textarea id="dataText" class="data-text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="dataHelp dataStatus"></textarea>
+      <p class="data-status" id="dataStatus" role="status" aria-live="polite"></p>
+      <div class="data-actions" id="dataExportActions">
+        <button type="button" id="dataCopy" class="btn btn--primary">Copy to clipboard</button>
+        <button type="button" id="dataSelect" class="btn btn--outline">Select all</button>
+        <button type="button" id="dataDownload" class="btn btn--text">Save as a file instead</button>
+      </div>
+      <div class="data-actions" id="dataImportActions" hidden>
+        <button type="button" id="dataImport" class="btn btn--primary">Import this data</button>
+        <label class="btn btn--text btn--file">
+          Open a file instead
+          <input type="file" id="importInput" accept="application/json,.json,.txt,text/plain" hidden />
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Warehouse settings modal -->
 <div id="settingsModal" class="modal" hidden>
   <div class="modal__backdrop" data-close-settings></div>
@@ -165,7 +191,7 @@
 
       <hr />
 
-      <p class="settings-note">All data lives in this browser only (localStorage). Use <strong>Export data</strong> regularly to back it up or move it to another computer.</p>
+      <p class="settings-note">All data lives in this browser only (localStorage). Use <strong>Export data</strong> regularly: it gives you text to copy and keep somewhere safe (an email to yourself, a shared document) so you can restore it, or move it to another computer, with <strong>Import data</strong>.</p>
       <button id="resetBtn" class="btn btn--outline btn--danger">Erase all warehouse data</button>
     </div>
   </div>

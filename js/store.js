@@ -506,12 +506,61 @@ var Store = (function () {
     return JSON.stringify(data, null, 2);
   }
 
-  function importJSON(json) {
-    var parsed = JSON.parse(json);
-    if (!parsed || !parsed.meta || !parsed.sections || !parsed.products || !parsed.cells) {
-      throw new Error("That file doesn't look like a warehouse map export.");
+  // Compact version of the export, for copy/paste backups (about a third the
+  // size of the indented file version).
+  function exportText() {
+    return JSON.stringify(data);
+  }
+
+  // Turns backup text into warehouse data, or throws an Error whose message
+  // is fit to show the user. Forgiving about what usually happens to text
+  // that has been through email or chat: extra spaces/blank lines around it,
+  // or a greeting / signature before and after the { ... } part.
+  function parseBackup(text) {
+    var raw = String(text == null ? "" : text).trim();
+    if (!raw) throw new Error("There's nothing to import yet \u2014 paste the backup text first.");
+    var parsed = null;
+    // Try the text as it is first. If that fails, try the usual damage: the
+    // JSON picked out from between a greeting and a signature, then with line
+    // breaks removed (mail programs hard-wrap long lines; the compact backup
+    // has no meaningful line breaks), then with curly quotes straightened.
+    var a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+    var core = a !== -1 && b > a ? raw.slice(a, b + 1) : raw;
+    var noBreaks = core.replace(/[\r\n]+/g, "");
+    var attempts = [raw, core, noBreaks, noBreaks.replace(/[\u201c\u201d]/g, '"')];
+    for (var i = 0; i < attempts.length && !parsed; i++) {
+      try { parsed = JSON.parse(attempts[i]); } catch (e) { parsed = null; }
     }
-    data = parsed;
+    if (!parsed) {
+      throw new Error("That text isn't a complete backup. Copy everything from the very first { to the very last }, with nothing cut off.");
+    }
+    if (!parsed || typeof parsed !== "object" || !parsed.meta || typeof parsed.sections !== "object" ||
+        typeof parsed.products !== "object" || typeof parsed.cells !== "object" || !parsed.sections || !parsed.products || !parsed.cells) {
+      throw new Error("That doesn't look like a warehouse map backup.");
+    }
+    return parsed;
+  }
+
+  function summarize(d) {
+    var racks = 0, pallets = 0;
+    Object.keys(d.sections).forEach(function (id) {
+      if (d.sections[id] && d.sections[id].type === "pallet") pallets++; else racks++;
+    });
+    return {
+      rows: (d.meta && d.meta.rows) || 6,
+      cols: (d.meta && d.meta.cols) || 8,
+      racks: racks,
+      pallets: pallets,
+      products: Object.keys(d.products).length
+    };
+  }
+
+  // What would importing this text bring in? (Throws like parseBackup.)
+  function inspectBackup(text) { return summarize(parseBackup(text)); }
+  function currentSummary() { return summarize(data); }
+
+  function importJSON(json) {
+    data = parseBackup(json);
     ensureMetaDefaults();
     save();
   }
@@ -555,6 +604,9 @@ var Store = (function () {
     skeletonsCompatible: skeletonsCompatible,
     naturalCompare: naturalCompare,
     exportJSON: exportJSON,
+    exportText: exportText,
+    inspectBackup: inspectBackup,
+    currentSummary: currentSummary,
     importJSON: importJSON,
     resetAll: resetAll,
     get sections() { return data.sections; },

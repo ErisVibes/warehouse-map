@@ -35,12 +35,18 @@ That's what makes it free to host on GitHub Pages (or any static host).
   the list without closing the rack window.
 - The **⚙ settings** button holds **Dark mode**, grid size, the auto-locate
   toggle, and **Erase all warehouse data**. **Export data** /
-  **Import data** are in the header.
+  **Import data** (copy/paste backups) are in the header.
 - The search panel on the right has three always-visible boxes: **Line
   code**, **Part number**, and **Category**. Every result has a **Show on
   map** button, and by default a search also pulses every matching
   location on the map automatically (turn that off in settings if you'd
-  rather click "Show on map" yourself).
+  rather click "Show on map" yourself). Matching racks and pallets then
+  keep an amber ring around them until your **next search** (even one
+  that finds nothing clears it), so you can come back to the map and still
+  see where to go. "Show on map" adds its rack to the ringed ones.
+- On the map, a rack with **no products** at all is grey instead of blue
+  (it turns blue as soon as something is stored on it), and each square's
+  badge shows how many products it holds.
 
 ### Getting around a big warehouse
 
@@ -70,7 +76,9 @@ Some racks have a left and a right side, others don't.
 - **Placing:** choose **Place rack**, then pick **One-sided rack** or
   **Two-sided rack**. A two-sided rack starts with 3 shelves on each side. On
   the map it's drawn with a divider down the middle (and has its own legend
-  entry), so you can tell them apart at a glance.
+  entry), so you can tell them apart at a glance. When you zoom out far
+  enough that the icons disappear, the square itself is still split in two
+  by a thin line.
 - **Editing:** open a two-sided rack and you'll see a **Left side / Right side**
   switch at the top. Only one side is shown at a time, so the shelves never
   stack up into one long list; each side has its own shelves and its own
@@ -78,8 +86,10 @@ Some racks have a left and a right side, others don't.
   products that side holds, so you can see at a glance where things are.
   Opening a rack from the map starts on the Left side; clicking **Open** on a
   search result jumps straight to the side (and shelf) that holds the product.
-  The count badge on the map totals both sides, and search results show where
-  something is, e.g. *Rack A1 – Right – Shelf 2*.
+  On the map, a two-sided rack has one count badge per side, in the matching
+  top corner (left badge = Left side's products, right badge = Right side's;
+  a side with nothing on it has no badge). Search results show where something
+  is, e.g. *Rack A1 – Right – Shelf 2*.
 - **Changing your mind:** tick or untick **Has left and right sides** in the
   rack's window.
   - Making a rack two-sided keeps all its current shelves as the Left side and
@@ -126,9 +136,58 @@ device. That means:
 - The **Dark mode** choice is remembered per browser too, but it's a display
   preference rather than warehouse data, so it isn't included in Export /
   Import and isn't touched by "Erase all warehouse data".
-- **Use "Export data" regularly.** It downloads a JSON file with everything
-  in it. "Import data" loads that file back in (on the same device or a
-  different one), replacing whatever's currently there.
+- **Use "Export data" regularly.** It shows your whole warehouse as a block of
+  plain text with a **Copy to clipboard** button — no file download needed,
+  so it works on computers that block downloads. Paste that text somewhere
+  safe (an email to yourself, a shared document, a chat). **Import data** is
+  the reverse: paste the text into the box and press **Import this data**
+  (on the same device or a different one). It first tells you what it found
+  and asks before replacing whatever's there now.
+  - Text that has been through email is fine: extra blank lines, a greeting
+    or signature around it, lines wrapped by the mail program, and curly
+    quotes are all tolerated. A backup with part of the end cut off is
+    refused with a message, and nothing is changed.
+  - If Copy doesn't work (some locked-down browsers block it), the text is
+    left selected so you can press Ctrl+C. **Save as a file instead** /
+    **Open a file instead** are still there for computers that do allow files.
+  - Backups are compact text, roughly 400 characters per product, so a
+    warehouse with a few thousand products is a few hundred KB.
+
+If several people at the store need to see the same live map at once, that
+requires a shared backend, which is a bigger project than a static GitHub
+Pages site — see "If you outgrow this" below.
+
+## Hosting it on GitHub Pages (free)
+
+1. Create a new repository on GitHub (public repos get free Pages hosting;
+   private repos need a paid plan).
+2. Add these files to the repository, keeping the folder structure exactly
+   as-is (`index.html` at the root, with `css/` and `js/` beside it).
+   - Easiest way: on the repo's GitHub page, click **Add file → Upload
+     files**, then drag in `index.html`, the `css` folder, and the `js`
+     folder together, and commit.
+3. Go to the repo's **Settings → Pages**.
+4. Under **Build and deployment**, set **Source** to **Deploy from a
+   branch**, branch **main**, folder **/ (root)**. Save.
+5. GitHub gives you a URL like `https://yourusername.github.io/your-repo/`
+   after a minute or two — that's the live site.
+
+Any time you edit the files and push/commit again, the live site updates
+automatically within a minute or so.
+
+### Trying it locally first
+
+You can just double-click `index.html` to open it in a browser, but some
+browsers restrict `localStorage` for files opened directly from disk
+(`file://`). If your data doesn't seem to save between visits, run a tiny
+local server from this folder instead:
+
+```
+python3 -m http.server 8000
+```
+
+then open `http://localhost:8000`. This isn't needed once it's on GitHub
+Pages — real https:// hosting doesn't have this restriction.
 
 ## File structure
 
@@ -142,3 +201,13 @@ js/editor.js       The rack/pallet modal: sides, shelves and products
 js/search.js       The three search modes and results list
 js/app.js          Wires it all together, toolbar + settings
 ```
+
+## If you outgrow this
+
+If it eventually needs to be a shared, always-in-sync tool for multiple
+people at once (rather than one browser's local data), the natural next
+step is pairing this same front end with a small free-tier backend —
+something like Supabase or Firebase — so everyone reads and writes the same
+data. That's a genuinely different project (accounts, a real database,
+sync), so it's left out of this version on purpose to keep it simple and
+free to host as-is. Happy to help design that step if/when it's needed.
